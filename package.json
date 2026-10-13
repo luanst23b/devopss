@@ -1,0 +1,11 @@
+{
+  "name": "techzone-local-stack",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node backend/scripts/start-local.js"
+  },
+  "dependencies": {
+    "qrcode.react": "^4.2.0"
+  }
+}
