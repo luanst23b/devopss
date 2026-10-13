@@ -37,6 +37,24 @@ Website mở tại `http://localhost:5173` (tự chuyển sang `5174` nếu cổ
 
 Để xem dữ liệu trong SSMS, kết nối tới `TEN-MAY\\SQLEXPRESS` bằng tài khoản SQL Server, rồi mở database `tech_store`. Script tạo bảng là `database/schema.sql`, dữ liệu mẫu là `database/seed.sql`. Nếu chưa cài dependencies, chạy `npm install` trong cả thư mục `backend` và `frontend`, sau đó chạy lại `start.bat`. Không cần Docker hay MySQL.
 
+## Deploy lên Render
+
+Backend này dùng Microsoft SQL Server; Render không cung cấp SQL Server managed database. Hãy chuẩn bị một SQL Server có thể truy cập từ Internet (ví dụ Azure SQL) và tạo database `tech_store` trước. Với Azure SQL Database, kết nối SSMS trực tiếp tới database đó, chạy `database/schema.sql` sau khi bỏ phần đầu tạo database/chuyển database (`IF DB_ID...` và `USE [tech_store]`), rồi chạy `database/seed.sql` sau khi bỏ dòng `USE [tech_store]` đầu tiên. Cấu hình firewall của SQL Server để cho phép kết nối từ Render. Không dùng `localhost`, `SQLEXPRESS` hay Windows Authentication trên Render; tiến trình Render chạy trên Linux và không thể truy cập SQL Server trên máy cá nhân. PostgreSQL của Render không tương thích với các truy vấn và schema T-SQL của dự án.
+
+Tạo một **Web Service** trên Render, chọn thư mục gốc `backend`, build command `npm install` và start command `npm start`. Trong **Environment**, khai báo:
+
+- `DB_SERVER`: hostname của SQL Server, ví dụ hostname Azure SQL (không kèm `tcp:` hoặc `,1433`)
+- `DB_PORT`: `1433` (không khai báo `DB_INSTANCE`)
+- `DB_NAME`, `DB_USER`, `DB_PASSWORD`: database đã tạo và thông tin đăng nhập SQL
+- `DB_ENCRYPT`: `true`
+- `DB_TRUST_SERVER_CERTIFICATE`: `false`
+- `JWT_SECRET`: một chuỗi bí mật ngẫu nhiên dài, không dùng giá trị mẫu trong `.env.example`
+- `CLIENT_ORIGIN`: URL HTTPS chính xác của frontend đã deploy, không có dấu `/` cuối
+
+Render cấp `PORT` tự động; không cần đặt biến này. Có thể đặt health check path là `/api/health`. Endpoint báo khỏe khi SQL Server cũng đã kết nối được. Deploy frontend riêng dưới dạng **Static Site** với thư mục gốc `frontend`, build command `npm install && npm run build`, publish directory `dist`, và biến build-time `VITE_API_URL=https://<URL-backend-render>/api`. Sau khi Static Site được tạo, đặt `CLIENT_ORIGIN` của backend bằng URL frontend rồi deploy lại backend.
+
+Không chép toàn bộ `.env.example` vào Render: các giá trị `localhost`/`SQLEXPRESS` chỉ dành cho máy Windows cục bộ. `DB_PORT` được dùng thay cho `DB_INSTANCE` khi kết nối SQL Server được host bên ngoài; TLS được bật mặc định trong cấu hình kiểu host/port.
+
 Seed kèm sản phẩm minh họa trải đều theo điện thoại, laptop, tablet, đồng hồ và phụ kiện. Trang danh sách có tìm kiếm, lọc danh mục/hãng/khoảng giá, sắp xếp và xem thêm; trang chi tiết trình bày mô tả, thông số, điểm nổi bật và phiên bản mẫu. Khách cần đăng nhập hoặc đăng ký trước khi mua/thêm giỏ; sản phẩm vừa chọn được giữ lại để tiếp tục sau khi xác thực.
 
 ## REST API mẫu

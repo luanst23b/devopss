@@ -1,20 +1,47 @@
 import "dotenv/config";
 import sql from "mssql";
 
-if (!process.env.DB_SERVER || !process.env.DB_INSTANCE || !process.env.DB_NAME
-  || !process.env.DB_USER || !process.env.DB_PASSWORD) {
-  throw new Error("SQL Server settings are missing. Start the project with start.bat to configure the database.");
+const dbServer = process.env.DB_SERVER?.trim();
+const dbInstance = process.env.DB_INSTANCE?.trim();
+const dbName = process.env.DB_NAME?.trim();
+const dbUser = process.env.DB_USER?.trim();
+const dbPassword = process.env.DB_PASSWORD;
+const dbPortValue = process.env.DB_PORT?.trim();
+
+if (!dbServer || !dbName || !dbUser || !dbPassword
+  || (!dbInstance && !dbPortValue)) {
+  throw new Error(
+    "SQL Server settings are missing. Set DB_SERVER, DB_NAME, DB_USER, DB_PASSWORD, "
+    + "and either DB_INSTANCE (local SQL Server) or DB_PORT (hosted SQL Server, usually 1433).",
+  );
+}
+
+const dbPort = dbPortValue ? Number(dbPortValue) : undefined;
+if (dbPortValue && (!Number.isInteger(dbPort) || dbPort < 1 || dbPort > 65_535)) {
+  throw new Error("DB_PORT must be a valid TCP port number between 1 and 65535.");
+}
+if (dbInstance && dbPort) {
+  throw new Error("Set either DB_INSTANCE or DB_PORT, not both.");
+}
+
+function booleanSetting(name, fallback) {
+  const value = process.env[name]?.trim().toLowerCase();
+  if (!value) return fallback;
+  if (value === "true") return true;
+  if (value === "false") return false;
+  throw new Error(`${name} must be set to true or false.`);
 }
 
 export const pool = new sql.ConnectionPool({
-  server: process.env.DB_SERVER,
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
+  server: dbServer,
+  ...(dbPort ? { port: dbPort } : {}),
+  database: dbName,
+  user: dbUser,
+  password: dbPassword,
   options: {
-    instanceName: process.env.DB_INSTANCE,
-    encrypt: false,
-    trustServerCertificate: true,
+    ...(dbInstance ? { instanceName: dbInstance } : {}),
+    encrypt: booleanSetting("DB_ENCRYPT", Boolean(dbPort)),
+    trustServerCertificate: booleanSetting("DB_TRUST_SERVER_CERTIFICATE", !dbPort),
   },
   pool: { max: 10, min: 0, idleTimeoutMillis: 30_000 },
 });
