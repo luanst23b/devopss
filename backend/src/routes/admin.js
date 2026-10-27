@@ -93,7 +93,7 @@ adminRouter.post("/products", async (req, res, next) => {
        (category_id, brand_id, slug, name, short_description, description, price, sale_price,
         stock_quantity, specifications, main_image, is_featured, is_active)
        OUTPUT INSERTED.id AS id
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, TRUE)`,
       [product.categoryId, brandId, product.slug, product.name, product.shortDescription,
         product.description, product.price, product.salePrice, product.stockQuantity,
         JSON.stringify(product.specifications), product.image, product.isFeatured],
@@ -107,7 +107,7 @@ adminRouter.post("/products", async (req, res, next) => {
     }
     res.status(201).json({ id });
   } catch (error) {
-    if ([2601, 2627].includes(error.number)) {
+    if (error.code === "23505") {
       return res.status(409).json({ message: "Slug sản phẩm đã tồn tại." });
     }
     next(error);
@@ -122,7 +122,7 @@ adminRouter.put("/products/:id", async (req, res, next) => {
     const result = await execute(
       `UPDATE dbo.products
        SET category_id = ?, brand_id = ?, slug = ?, name = ?, short_description = ?,
-           description = ?, price = ?, sale_price = ?, stock_quantity = ?, specifications = ?,
+           description = ?, price = ?, sale_price = ?, stock_quantity = ?, specifications = ?::jsonb,
            main_image = ?, is_featured = ?, updated_at = SYSUTCDATETIME()
        WHERE id = ?`,
       [product.categoryId, brandId, product.slug, product.name, product.shortDescription,
@@ -133,7 +133,7 @@ adminRouter.put("/products/:id", async (req, res, next) => {
     if (product.image) {
       const imageUpdate = await execute(
         `UPDATE dbo.product_images SET image_url = ?, alt_text = ?
-         WHERE id = (SELECT TOP (1) id FROM dbo.product_images WHERE product_id = ? ORDER BY sort_order, id)`,
+         WHERE id = (SELECT id FROM dbo.product_images WHERE product_id = ? ORDER BY sort_order, id LIMIT 1)`,
         [product.image, product.name, req.params.id],
       );
       if (imageUpdate.rowsAffected[0] === 0) {
@@ -145,7 +145,7 @@ adminRouter.put("/products/:id", async (req, res, next) => {
     }
     res.json({ message: "Đã cập nhật sản phẩm." });
   } catch (error) {
-    if ([2601, 2627].includes(error.number)) {
+    if (error.code === "23505") {
       return res.status(409).json({ message: "Slug sản phẩm đã tồn tại." });
     }
     next(error);

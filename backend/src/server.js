@@ -8,6 +8,7 @@ import { productRouter } from "./routes/products.js";
 import { orderRouter } from "./routes/orders.js";
 import { paymentRouter } from "./routes/payments.js";
 import { adminRouter } from "./routes/admin.js";
+import { initializeDatabase } from "../scripts/init-db.js";
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
@@ -43,5 +44,6 @@ app.use((error, _req, res, _next) => {
   });
 });
 
-await pool.connect();
+await initializeDatabase();
+await pool.query("SELECT 1");
 app.listen(port, () => console.log(`Tech Store API listening at http://localhost:${port}`));

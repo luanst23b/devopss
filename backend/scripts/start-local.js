@@ -97,7 +97,7 @@ function launch(label, executable, args, options) {
 }
 
 async function main() {
-  const backendDependencyMissing = !(await pathExists(path.join(backendDirectory, "node_modules", "mssql", "package.json")));
+  const backendDependencyMissing = !(await pathExists(path.join(backendDirectory, "node_modules", "pg", "package.json")));
   const frontendDependencyMissing = !(await pathExists(viteEntry));
   if (backendDependencyMissing) {
     console.log("Installing backend dependencies...");
@@ -108,7 +108,7 @@ async function main() {
     await installDependencies(frontendDirectory);
   }
 
-  for (const dependencyPath of [require.resolve("mssql"), viteEntry]) {
+  for (const dependencyPath of [require.resolve("pg"), viteEntry]) {
     try {
       await access(dependencyPath);
     } catch {

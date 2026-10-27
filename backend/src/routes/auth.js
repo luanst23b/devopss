@@ -14,14 +14,14 @@ authRouter.post("/register", async (req, res, next) => {
     }
     const passwordHash = await bcrypt.hash(password, 12);
     const result = await execute(
-      `INSERT INTO dbo.users (full_name, email, password_hash, phone)
-       OUTPUT INSERTED.id AS id
-       VALUES (?, ?, ?, ?)`,
+      `INSERT INTO users (full_name, email, password_hash, phone)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id`,
       [fullName.trim(), email.trim().toLowerCase(), passwordHash, phone?.trim() || null],
     );
     res.status(201).json(await createSession(result.recordset[0].id));
   } catch (error) {
-    if ([2601, 2627].includes(error.number)) {
+    if (error.code === "23505") {
       return res.status(409).json({ message: "Email này đã được sử dụng." });
     }
     next(error);
@@ -32,7 +32,7 @@ authRouter.post("/login", async (req, res, next) => {
   try {
     const { email, password } = req.body;
     const rows = await query(
-      "SELECT id, full_name, email, password_hash, role FROM dbo.users WHERE email = ?",
+      "SELECT id, full_name, email, password_hash, role FROM users WHERE email = $1",
       [email?.trim().toLowerCase() || ""],
     );
     if (!rows[0] || !(await bcrypt.compare(password || "", rows[0].password_hash))) {
@@ -47,7 +47,7 @@ authRouter.post("/login", async (req, res, next) => {
 authRouter.get("/me", authenticate, async (req, res, next) => {
   try {
     const rows = await query(
-      "SELECT id, full_name AS fullName, email, phone, role FROM dbo.users WHERE id = ?",
+      "SELECT id, full_name AS fullName, email, phone, role FROM users WHERE id = $1",
       [req.user.id],
     );
     if (!rows[0]) return res.status(404).json({ message: "Không tìm thấy tài khoản." });
@@ -59,7 +59,7 @@ authRouter.get("/me", authenticate, async (req, res, next) => {
 
 async function createSession(userId) {
   const rows = await query(
-    "SELECT id, full_name, email, role FROM dbo.users WHERE id = ?",
+    "SELECT id, full_name, email, role FROM users WHERE id = $1",
     [userId],
   );
   return sessionResponse(rows[0]);
